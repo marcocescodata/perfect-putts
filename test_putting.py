@@ -62,6 +62,28 @@ class AnalyzeTests(unittest.TestCase):
         self.assertIsNone(putting.analyze(synthetic_putt(0.15, 0.1, amplitude_deg=1.5)))
 
 
+class HeadPathTests(unittest.TestCase):
+    def path(self, axis, down):
+        samples = synthetic_putt(0.66, 0.33, axis=axis)
+        for s in samples:
+            s.update(grx=down[0], gry=down[1], grz=down[2])
+        return putting.head_path(samples, putting.analyze(samples))
+
+    def assert_pendulum(self, path):
+        back = 0.85 * math.sin(math.radians(15))
+        self.assertLess(abs(min(p[0] for p in path) + back), 0.02)  # backswing goes to −x
+        self.assertGreater(path[-1][0], 0)  # finishes toward the target
+        self.assertLess(max(abs(p[1]) for p in path), 0.01)  # square stroke: no y drift
+        self.assertGreaterEqual(min(p[2] for p in path), -0.005)  # head rises either side
+
+    def test_vertical_shaft(self):
+        self.assert_pendulum(self.path(axis=(1, 0, 0), down=(0, -1, 0)))
+
+    def test_any_airpod_orientation(self):
+        down = (0.48, 0.6, -0.64)  # unit, and perpendicular to the swing axis
+        self.assert_pendulum(self.path(axis=(0, 0.8, 0.6), down=down))
+
+
 class DetectorTests(unittest.TestCase):
     def test_detects_each_putt_in_a_stream(self):
         first = synthetic_putt(0.66, 0.33, seed=1)

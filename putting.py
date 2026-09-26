@@ -157,7 +157,7 @@ class StrokeDetector:
     phase: str = "waiting"  # waiting → ready → stroke
     _history: list = field(default_factory=list)
     _recording: list = field(default_factory=list)
-    _still_since: float | None = None
+    still_since: float | None = None  # when the putter last became still
     _trigger_time: float = 0
 
     def process(self, sample):
@@ -165,11 +165,11 @@ class StrokeDetector:
         t = sample["t"]
         speed = length(gyro(sample))
         if speed < c.still_threshold:
-            if self._still_since is None:
-                self._still_since = t
+            if self.still_since is None:
+                self.still_since = t
         else:
-            self._still_since = None
-        still_for = t - self._still_since if self._still_since is not None else 0
+            self.still_since = None
+        still_for = t - self.still_since if self.still_since is not None else 0
 
         if self.phase in ("waiting", "ready"):
             self._history.append(sample)
@@ -186,10 +186,80 @@ class StrokeDetector:
         if still_for < c.settle_duration and t - self._trigger_time <= c.max_stroke_duration:
             return None
         samples = self._recording
-        self._recording, self._history, self._still_since = [], [], None
+        self._recording, self._history, self.still_since = [], [], None
         self.phase = "waiting"
         stroke = analyze(samples, self.analyzer_config)
         return (stroke, samples) if stroke else None
+
+
+def _cross(a, b):
+    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
+def _dot(a, b):
+    return sum(x * y for x, y in zip(a, b))
+
+
+def _unit(v):
+    n = length(v)
+    return tuple(c / n for c in v)
+
+
+def _matmul(a, b):
+    return [[sum(a[i][k] * b[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
+
+
+def _rotation(axis, angle):
+    """Rotation matrix for angle (radians) about a unit axis (Rodrigues)."""
+    x, y, z = axis
+    c, s, k = math.cos(angle), math.sin(angle), 1 - math.cos(angle)
+    return [[c + x * x * k, x * y * k - z * s, x * z * k + y * s],
+            [y * x * k + z * s, c + y * y * k, y * z * k - x * s],
+            [z * x * k - y * s, z * y * k + x * s, c + z * z * k]]
+
+
+def head_path(samples, stroke=None, shaft_length=0.85, config=AnalyzerConfig()):
+    """Putter-head position for each sample, as (x, y, z) in metres relative to address.
+
+    Integrates the gyro into the putter's rotation since address and swings a shaft of
+    shaft_length (grip end → head) with it. The shaft is taken to point along gravity at
+    address, so this is the path of a vertical-shaft putter: right shape, approximate size.
+    Needs gravity (grx/gry/grz) in the samples and a still pre-roll, as from StrokeDetector.
+
+    Axes: z up; x along the target line, positive toward the target (the backswing goes to
+    −x); y horizontal, positive toward the player for a right-hander.
+    """
+    # Estimate bias over the whole still pre-roll: any error here grows into drift.
+    t0 = samples[0]["t"]
+    still = [s for s in samples if stroke and s["t"] < stroke.start_time] or \
+        [s for s in samples if s["t"] - t0 <= config.bias_window]
+    bias = [sum(c) / len(still) for c in zip(*map(gyro, still))]
+    down = _unit([sum(c) for c in zip(*((s["grx"], s["gry"], s["grz"]) for s in still))])
+
+    # R maps the AirPod's current frame onto its frame at address: dR/dt = R·[ω]×.
+    r = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    heads = [tuple(shaft_length * c for c in down)]
+    for prev, cur in zip(samples, samples[1:]):
+        w = [(a + b) / 2 - c for a, b, c in zip(gyro(prev), gyro(cur), bias)]
+        angle = length(w) * (cur["t"] - prev["t"])
+        if angle > 0:
+            r = _matmul(r, _rotation(_unit(w), angle))
+        heads.append(tuple(shaft_length * _dot(row, down) for row in r))
+    moved = [tuple(h - h0 for h, h0 in zip(head, heads[0])) for head in heads]
+
+    # Target line: opposite to where the head is at the top of the backswing.
+    up = tuple(-c for c in down)
+    flat = [tuple(m - _dot(p, up) * u for m, u in zip(p, up)) for p in moved]
+    if stroke:
+        top_t = stroke.start_time + stroke.backswing
+        back = flat[min(range(len(samples)), key=lambda i: abs(samples[i]["t"] - top_t))]
+    else:
+        back = max(flat, key=length)
+    if length(back) == 0:
+        return [(0.0, 0.0, 0.0)] * len(samples)
+    x = tuple(-c for c in _unit(back))
+    y = _cross(up, x)
+    return [(_dot(p, x), _dot(p, y), _dot(p, up)) for p in moved]
 
 
 def summarise(strokes):

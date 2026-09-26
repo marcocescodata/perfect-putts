@@ -37,6 +37,7 @@ manager.startDeviceMotionUpdates(to: .main) { motion, error in
         "t": m.timestamp,
         "gx": m.rotationRate.x, "gy": m.rotationRate.y, "gz": m.rotationRate.z,
         "ax": m.userAcceleration.x, "ay": m.userAcceleration.y, "az": m.userAcceleration.z,
+        "grx": m.gravity.x, "gry": m.gravity.y, "grz": m.gravity.z,
     ])
 }
 RunLoop.main.run()

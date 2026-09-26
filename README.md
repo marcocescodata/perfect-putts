@@ -30,7 +30,9 @@ Per putt, it records:
 ## Layout
 
 - `putting.py`: stroke detection, tempo analysis and session stats. Pure Python.
-- `record.py`: runs a live session and saves the data.
+- `putt_view.py`: a window for one putt at a time. Press Run, hold still at address for
+  3 s, putt, and it plots the putter head's path from above (XY) and down the target line (YZ).
+- `record.py`: runs a longer live session and saves the data.
 - `airpods.py`: streams live AirPod motion into Python.
 - `probe.py`: prints raw gyro readings, to check the sensor is reaching Python.
 - `bridge/`: a tiny Swift helper app that reads the sensor. macOS only grants motion
@@ -43,9 +45,14 @@ Build the helper once (needs the Xcode Command Line Tools):
 
     ./bridge/build.sh
 
-Check the sensor, then record a session:
+Install matplotlib for the viewer (once):
+
+    .venv/bin/python -m pip install matplotlib
+
+Check the sensor, then view single putts or record a session:
 
     .venv/bin/python probe.py 15
+    .venv/bin/python putt_view.py
     .venv/bin/python record.py
 
 Tests:
@@ -57,9 +64,15 @@ Tests:
 Each session is saved in `data/<date_time>/`:
 
 - `samples.jsonl`: every sensor reading, including waggles and missed putts. Fields are
-  `t` (seconds), `gx/gy/gz` (gyro, rad/s) and `ax/ay/az` (acceleration minus gravity, g).
+  `t` (seconds), `gx/gy/gz` (gyro, rad/s) and `ax/ay/az` (acceleration minus gravity, g) and `grx/gry/grz` (gravity, g).
 - `strokes.csv`: one row per detected putt with its features. `rec_start` and `rec_end`
   mark which samples belong to that putt.
+
+`putt_view.py` saves each putt to `data/putts/<date_time>.json`, with its features and raw samples.
+
+**Head path:** the gyro only measures rotation, so the path is rebuilt by rotating an 0.85 m
+shaft that hangs along gravity at address. The shape is right; the size is approximate,
+because a real shaft leans at its lie angle. The plot axes are not to scale.
 
 ## Hardware notes
 
