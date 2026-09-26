@@ -1,0 +1,9 @@
+.DS_Store
+.build/
+.swiftpm/
+DerivedData/
+*.xcodeproj/
+xcuserdata/
+bridge/AirpodStream.app/
+.venv/
+__pycache__/

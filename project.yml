@@ -1,0 +1,29 @@
+name: PerfectPutts
+options:
+  bundleIdPrefix: com.marcocesco
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  PuttCore:
+    path: PuttCore
+targets:
+  PerfectPutts:
+    type: application
+    platform: iOS
+    sources: [App]
+    dependencies:
+      - package: PuttCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.marcocesco.perfectputts
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Perfect Putts
+        INFOPLIST_KEY_NSMotionUsageDescription: Perfect Putts reads your AirPods' motion sensors to measure putting stroke tempo.
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        DEVELOPMENT_TEAM: "" # set to your Apple ID team to run on your iPhone
