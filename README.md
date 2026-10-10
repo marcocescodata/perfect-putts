@@ -32,6 +32,8 @@ Per putt, it records:
 - `putting.py`: stroke detection, tempo analysis and session stats. Pure Python.
 - `putt_view.py`: a window for one putt at a time. Press Run, hold still at address for
   3 s, putt, and it plots the putter head's path from above (XY) and down the target line (YZ).
+- `tempo_app.py`: putting tempo tests in the browser (http://localhost:8765). Shows each
+  putt's backstroke ÷ forward-stroke ratio against a 2:1 target; `--demo` fakes putts.
 - `record.py`: runs a longer live session and saves the data.
 - `airpods.py`: streams live AirPod motion into Python.
 - `probe.py`: prints raw gyro readings, to check the sensor is reaching Python.
